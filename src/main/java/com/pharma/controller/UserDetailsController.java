@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DisabledException;
+import org.springframework.security.authentication.InternalAuthenticationServiceException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -15,7 +16,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.pharma.auth.JwtTokenUtil;
-import com.pharma.model.JwtRequest;
 import com.pharma.model.JwtResponse;
 import com.pharma.model.UserModel;
 import com.pharma.service.UserDetailsService;
@@ -33,10 +33,10 @@ public class UserDetailsController {
 	private UserDetailsService userDetailsService;
 
 	@PostMapping(value = "/signin")
-	public JwtResponse createAuthenticationToken(@RequestBody JwtRequest authenticationRequest) throws PharmaException {
+	public JwtResponse createAuthenticationToken(@RequestBody UserModel authenticationRequest) throws PharmaException {
 		authenticate(authenticationRequest.getUsername(), authenticationRequest.getPassword());
-		final UserDetails userDetails = userDetailsService.loadUserByUsername(authenticationRequest.getUsername());
-
+		final UserDetails userDetails = userDetailsService.loadUserByUsername(authenticationRequest.getUsername());		
+					
 		final String token = jwtTokenUtil.generateToken(userDetails);
 		return new JwtResponse(token);
 	}
@@ -47,25 +47,30 @@ public class UserDetailsController {
 		} catch (DisabledException e) {
 			throw new PharmaException("USER_DISABLED");
 		} catch (BadCredentialsException e) {
-			throw new PharmaException("INVALID_CREDENTIALS");
+			throw new PharmaException("Invalid username and password");
+		}
+		catch (InternalAuthenticationServiceException e) {
+			throw new PharmaException("Invalid username and password");
 		}
 	}
 
 	@PostMapping(value = "/signup")
 	public UserModel registerUser(@RequestBody UserModel userModel) throws PharmaException {
 
-		UserModel model = userDetailsService.saveUser(userModel);
-		return model;
+		return userDetailsService.saveUser(userModel);
+
 	}
 
 	@GetMapping(value = "/generateOTP/{username}/{mobile}")
-	public String generateOTP(@PathVariable("username") String username	,@PathVariable("mobile") long mobile) throws PharmaException {
+	public String generateOTP(@PathVariable("username") String username, @PathVariable("mobile") long mobile)
+			throws PharmaException {
 
 		return userDetailsService.generateOTP(username, mobile);
 	}
-	
+
 	@GetMapping(value = "/verifyOTP/{mobile}/{OTP}")
-	public String generateOTP(@PathVariable("mobile") long mobile, @PathVariable("OTP") String OTP) throws PharmaException {
+	public String verifyOTP(@PathVariable("mobile") long mobile, @PathVariable("OTP") String OTP)
+			throws PharmaException {
 
 		return userDetailsService.verifyOTP(mobile, OTP);
 	}

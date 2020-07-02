@@ -38,7 +38,8 @@ implements org.springframework.security.core.userdetails.UserDetailsService, Map
 	public UserModel loadUserByUsername(String username) {
 
 		UserDomain domain = userRepository.findByUsername(username);
-		return modelMapper.map(domain, UserModel.class);
+		
+		return convertToModel(domain);
 
 	}
 
@@ -50,13 +51,13 @@ implements org.springframework.security.core.userdetails.UserDetailsService, Map
 		// user type : customer , admin
 		// login type : normal, facebook, google, pharma
 		if (null != userDetails && userDetails.getLoginType().equalsIgnoreCase("normal")) {
-			throw new PharmaException("USER_ALREADY_EXIST");
+			throw new PharmaException("User Already Exists");
 		} else if (null != userDetails && userDetails.getLoginType().equalsIgnoreCase("facebook")) {
-			throw new PharmaException("USER_ALREADY_EXIST with Facebook");
+			throw new PharmaException("User Already Registered with Facebook");
 		} else if (null != userDetails && userDetails.getLoginType().equalsIgnoreCase("google")) {
-			throw new PharmaException("USER_ALREADY_EXIST with Google");
+			throw new PharmaException("User Already Registered with Google");
 		} else if (null != userDetails && userDetails.getLoginType().equalsIgnoreCase("pharma")) {
-			throw new PharmaException("USER_ALREADY_EXIST with Pharma");
+			throw new PharmaException("User Alredy Exists with Pharma");
 		} else {
 			UserDomain detail = modelMapper.map(userModel, UserDomain.class);
 			detail.setPassword(bcryptEncoder.encode(detail.getPassword()));
@@ -78,14 +79,14 @@ implements org.springframework.security.core.userdetails.UserDetailsService, Map
 
 		final UserDomain userDetails = userRepository.findByUsernameOrEmail(userName, userName);
 		if (null == userDetails) {
-			throw new PharmaException("USER_DOES_NOT_EXIST");
+			throw new PharmaException("User does not exists");
 		}else {
 			userDetails.setMobile(mobile);
 			int randomPin = (int) (Math.random() * 9000) + 1000;
 			userDetails.setMobileVerifiedOTP(String.valueOf(randomPin));
 			UserDomain userDomain = userRepository.save(userDetails);
 			//setUpAccount(detail);
-			otpSender.sendMobileVerificationOTP(userDomain.getMobileVerifiedOTP(), String.valueOf(userDomain.getMobile()));
+			//otpSender.sendMobileVerificationOTP(userDomain.getMobileVerifiedOTP(), String.valueOf(userDomain.getMobile()));
 			return userDetails.getMobileVerifiedOTP();
 		}
 	}
@@ -145,17 +146,20 @@ implements org.springframework.security.core.userdetails.UserDetailsService, Map
 
 	}
 
-	public String verifyOTP(long mobile, String OTP) {
+	public String verifyOTP(long mobile, String OTP) throws PharmaException {
 		String response = null;
 		final UserDomain userDetails = userRepository.findByMobile(mobile);
 		if (null == userDetails) { 
-			response ="We could not find an account for that e-mail address"; 
+			throw new PharmaException("We could not find an account for that e-mail address");
 		}else {
 			if (userDetails.getMobileVerifiedOTP().equalsIgnoreCase(OTP)) {
 				userDetails.setMobileVerified(true); 
 				userDetails.setModifiedTs(LocalDateTime.now());
 				userRepository.save(userDetails);
 				response = "Mobile Verification Completed";
+			}else
+			{
+				throw new PharmaException("Please enter valid OTP");
 			}
 		}
 
